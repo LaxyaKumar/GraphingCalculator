@@ -1,0 +1,747 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.22000}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 package projectspack;\par
+import java.io.*;\par
+import java.awt.event.MouseAdapter;\par
+import java.awt.event.MouseEvent;\par
+import java.awt.event.MouseListener;\par
+import java.awt.event.MouseMotionAdapter;\par
+import java.awt.event.MouseMotionListener;\par
+import java.awt.event.MouseWheelEvent;\par
+import java.awt.event.MouseWheelListener;\par
+import java.util.*;\par
+import java.awt.*;\par
+import javax.swing.*;\par
+import javax.swing.Timer;\par
+\par
+import java.awt.event.*;\par
+import java.awt.geom.Point2D;\par
+import java.io.IOException;\par
+import java.text.DecimalFormat;\par
+import java.awt.geom.AffineTransform;\par
+\par
+\par
+\par
+\par
+public class Solution extends JPanel implements ActionListener, MouseWheelListener, MouseListener,MouseMotionListener \{\par
+\par
+\par
+    private static final DecimalFormat df = new DecimalFormat("0.00000000");\par
+    private static final DecimalFormat lbf = new DecimalFormat("0.00");\par
+  private double zoomFactor =250;\par
+  public String equation = new String();;\par
+  public JLabel equationLabel;\par
+  public JTextField graphFunctionBox;\par
+  private JFrame graph;\par
+  private boolean isZooming;\par
+  private Point dragStart;\par
+  private Point dragEnd;\par
+  private Point mouse;\par
+  private double targetZoom ;\par
+  private boolean isMouseDown;\par
+  private AffineTransform coordTransform = new AffineTransform();\par
+  private double xOffset, yOffset=0;\par
+  public float[] dataPoints ; // DataPoints on Screen with length of w * n   N being how precise the data is.\par
+  Font font1 = new Font("SansSerif", Font.BOLD, 20);\par
+  private Timer time = new Timer(50,this);\par
+  public Solution()\{\par
+    Equation a = new Equation("(-x)^x" , 0, true);\par
+    System.out.println("Debug " + a.value + " "+ Math.pow(0, 0));\par
+    //System.exit(ABORT);\par
+    JPanel UI = new JPanel();\par
+    UI.setBounds(0,0,400,150);\par
+    graph = new JFrame();\par
+    setFocusable(true);\par
+    setBounds(0, 20, 400, 200);\par
+    graphFunctionBox = new JTextField(25);\par
+    graphFunctionBox.setFont(font1);\par
+    equationLabel = new JLabel("Enter the equation within this box");\par
+    equationLabel.setFont(font1);\par
+    UI.add(equationLabel);\par
+    UI.add(graphFunctionBox);\par
+    graph.addMouseWheelListener(this);\par
+    graph.setTitle("Graphing your math functions");\par
+    graph.setSize(400,300);\par
+    graph.setVisible(true);\par
+    //graph.setLayout((LayoutManager) new FlowLayout());\par
+    graph.add(this);\par
+    this.add(UI);\par
+    repaint();\par
+    addMouseListener(this);\par
+    addMouseMotionListener(this);\par
+    targetZoom = zoomFactor;\par
+    addMouseWheelListener(this);\par
+    getRootPane().setBorder(BorderFactory.createMatteBorder(8, 8, 8, 8, Color.RED));\par
+    graph.getContentPane().setBackground(new Color(250,211,211));\par
+    time.start();\par
+  \}\par
+  public void paintComponent(Graphics g)\{\par
+  \par
+    this.setBounds(0,7,graph.getWidth(), graph.getHeight()-40);\par
+    zoomFactor =lerp(zoomFactor ,targetZoom , 0.3 );\par
+    super.paintComponent(g);\par
+    g.setColor(Color.WHITE);\par
+    g.fillRect(0, 0, this.getWidth(), this.getHeight());\par
+    \par
+    if(mouse==null) \{\par
+      mouse = new Point(0,0);\par
+    \}\par
+    Equation mouseX =new Equation(graphFunctionBox.getText().trim() ,(mouse.x -xOffset*-zoomFactor   )/zoomFactor,true) ;\par
+    g.setColor(Color.BLACK);\par
+    if(mouse!=null)\par
+    g.drawString("x :" +  (mouse.x -xOffset*-zoomFactor   )/zoomFactor+ " " + mouseX.value , 200, 200);\par
+    try\{\par
+      g.setColor(Color.blue);\par
+      //y axis\par
+      g.drawLine( (int)(xOffset*-zoomFactor) , this.getHeight(),(int)(xOffset*-zoomFactor) , 0   );\par
+      //x axis\par
+      g.setColor(Color.RED);\par
+      g.drawLine( 0,this.getHeight()+ (int)(yOffset*-zoomFactor) , this.getWidth() ,  this.getHeight()+(int)(yOffset*-zoomFactor));\par
+      //double[][] data =loadDataPoints( graphFunctionBox.getText()  , xOffset , xOffset + (this.getWidth())*(1/zoomFactor) , 1/zoomFactor);\par
+      double x01= 0;\par
+      double y1 = 0;\par
+      double y2;\par
+      double a =((0 - (yOffset*-zoomFactor)-(this.getHeight() ))/(- zoomFactor))- ((0 - (yOffset*-zoomFactor) ))/(- zoomFactor) ;\par
+      g.setColor(Color.black);\par
+      double scale= Math.pow(10,(double)((int)(Math.log10(a)-1)));\par
+      int incre =  this.getHeight()/scale/zoomFactor >10? 5:1 ;\par
+      for(int i = 0 ; scale*i *zoomFactor< this.getHeight()-zoomFactor*yOffset ; i+= incre) \{\par
+        g.drawString( lbf.format(scale * i) , (int)(xOffset*-zoomFactor)  + 20 , (int)(this.getHeight() - i*scale* zoomFactor+ (int)(yOffset*-zoomFactor)));\par
+      \}\par
+      for(int i = 0 ; -scale*i *zoomFactor< this.getHeight()-zoomFactor*yOffset ; i-= incre) \{\par
+        g.drawString( lbf.format(scale * i) , (int)(xOffset*-zoomFactor)  + 20 , (int)(this.getHeight() - i*scale* zoomFactor+ (int)(yOffset*-zoomFactor)));\par
+      \}\par
+      \par
+      \par
+      for(int i = 0 ; scale*i *zoomFactor< this.getWidth() -zoomFactor*xOffset; i+= incre) \{\par
+        g.drawString( lbf.format(scale * i) , (int)(i*scale* zoomFactor+ (int)(xOffset*-zoomFactor)) ,this.getHeight()+(int)(yOffset*-zoomFactor) +20 ) ;\par
+      \}\par
+      for(int i = 0 ; -scale*i *zoomFactor< this.getWidth() -zoomFactor*xOffset  ; i-= incre) \{\par
+        g.drawString( lbf.format(scale * i) , (int)(i*scale* zoomFactor+ (int)(xOffset*-zoomFactor)) ,this.getHeight()+(int)(yOffset*-zoomFactor) +20 ) ;\par
+      \}\par
+      for(int x = 0 ; x+1 < this.getWidth(); x++)\{\par
+        Equation x2 =new Equation(graphFunctionBox.getText().trim() ,(x+1 -xOffset*-zoomFactor   )/zoomFactor,true) ;\par
+        if(x == 0) \{\par
+          \par
+          Equation x1 =new Equation(graphFunctionBox.getText() ,(x -xOffset*-zoomFactor   )/zoomFactor,true) ;\par
+          y1 = x1.value;\par
+        \}\par
+        y2= x2.value;\par
+        if(  y2 == Double.NaN)\{\par
+\par
+          continue;\par
+        \}\par
+        g.setColor(Color.BLACK);\par
+        g.drawLine((int) x01, (int)(this.getHeight() - y1* zoomFactor+ (int)(yOffset*-zoomFactor)) , x+1, ((int)(this.getHeight() - y2*zoomFactor + (int)(yOffset*-zoomFactor))) < 0 ? -1 :((int)(this.getHeight() - y2*zoomFactor + (int)(yOffset*-zoomFactor)))   );\par
+        y1= y2;\par
+        x01= x+1;\par
+        \par
+      \}\par
+      Point pot = new Point((int)(xOffset*-zoomFactor),this.getHeight()+ (int)(yOffset*-zoomFactor) );\par
+      \par
+      \par
+    \}catch(Exception e )\{\par
+      e.printStackTrace();\par
+      // Equation Provided is Invalid\par
+    \}\par
+\par
+  \}\par
+  public void actionPerformed(ActionEvent e) \{\par
+    if(e.getSource() ==time)\par
+      repaint();\par
+  \}\par
+\par
+  public static void main(String[]args)\par
+  \{\par
+    Solution s1 = new Solution();\par
+\par
+\par
+  \}\par
+  public void mousePressed(MouseEvent e) \{\par
+    isMouseDown = true;\par
+  \}\par
+  public void mouseReleased(MouseEvent e)\par
+  \{\par
+    p1 = null;\par
+    isMouseDown = false;\par
+  \}\par
+  Point p1 = null;\par
+  public void mouseMoved(MouseEvent e)\par
+  \{\par
+    mouse = e.getPoint();\par
+  \}\par
+  double zoom =0;\par
+  public void mouseWheelMoved(MouseWheelEvent e)\par
+  \{\par
+    zoom += e.getPreciseWheelRotation();\par
+    targetZoom =500 *Math.pow(1.2,zoom);\par
+  \}\par
+  public static double[][] loadDataPoints(String input , double min , double max , double inc) throws Exception  \{\par
+    input=input.replaceAll(" ", "");\par
+    String[] equation= input.trim().split("=");\par
+\par
+\par
+    if(equation.length >2) \par
+    \{\par
+      return null; \par
+    \}/*\par
+    if(equation.length ==1) \{\par
+\par
+      return compileNRun(equation[0].trim() , min, max, inc);\par
+    \}\par
+    if(equation[0].trim().toLowerCase().equals("y")) \{\par
+\par
+      return compileNRun(equation[1].trim() , min, max, inc);\par
+\par
+    \}\par
+    if(equation[1].trim().toLowerCase().equals("y")) \{\par
+\par
+      return compileNRun(equation[0].trim() , min, max, inc);\par
+\par
+    \}*/\par
+\par
+    //Equation a = new Equation("(5/20)*10^4 +21",1,true);\par
+\par
+    if(equation.length ==1) \{\par
+\par
+      return compileNRun(equation[0].trim() , min, max, inc);\par
+    \}\par
+    System.err.println("Not A valid Equation " + input+"  "+ equation[1] + " "+ equation[0]);\par
+    return null;\par
+\par
+\par
+\par
+  \}\par
+  static String previous = " ";\par
+  public static double[][] compileNRun(String input , double min , double max , double inc) throws Exception \{\par
+    String code =formatToScript(input);\par
+    if(previous.equals(code)) \{\par
+      return run(min , max , inc);\par
+\par
+    \}\par
+    if(code.length()==0)code ="Double.NaN";\par
+    previous= code;\par
+    String script = \par
+        "import java.math.RoundingMode;\\r\\n"\par
+            + "import java.text.DecimalFormat;\\r\\n"\par
+            + "\\r\\n"\par
+            + "public class Snippet \{\\r\\n"\par
+            + "    private static final DecimalFormat df = new DecimalFormat(\\"0.00000\\");\\r\\n"\par
+            + "  public static void main(String[] args) \{\\r\\n"\par
+            + "    df.setRoundingMode(RoundingMode.HALF_EVEN);\\r\\n"\par
+            + "    double min =0;\\r\\n"\par
+            + "    double max = 100;\\r\\n"\par
+            + "    double increment= 0.25;\\r\\n"\par
+            + "    if(args.length>0) \{\\r\\n"\par
+            + "      min = Double.parseDouble(args[0].trim());\\r\\n"\par
+            + "      if(args.length >1) \{\\r\\n"\par
+            + "        max = Double.parseDouble(args[1].trim());\\r\\n"\par
+            + "      \}if(args.length >2) \{\\r\\n"\par
+            + "        increment = Double.parseDouble(args[2].trim());\\r\\n"\par
+            + "      \}\\r\\n"\par
+            + "    \}\\r\\n"\par
+            + "    for(int i = 0 ; i <(int) ((max - min)/increment ) ; i++) \{\\r\\n"\par
+            + "      double result = solve((double) i * increment + min);\\r\\n"\par
+            + "      System.out.println(df.format(((double) i * increment + min))+ \\" \\" + df.format(result));\\r\\n"\par
+            + "      \\r\\n"\par
+            + "    \}\\r\\n"\par
+            + "\\r\\n"\par
+            + "  \}\\r\\n"\par
+            + "  public static double solve(double x) \{\\r\\n"\par
+            + "    double y=Double.NaN;\\r\\n"\par
+            + "    ";\par
+\par
+\par
+\par
+    script +=  "y = "+ code+ ";\\n" ;\par
+\par
+\par
+\par
+    script +="return y;\\r\\n"\par
+        + "  \}\\r\\n"\par
+        + "  public double factorial(int a) \{\\r\\n"\par
+        + "    double fact =1;\\r\\n"\par
+        + "    int number=5;//It is the number to calculate factorial    \\r\\n"\par
+        + "    for(int i=1;i<=number;i++)\{    \\r\\n"\par
+        + "      if(Double.MAX_VALUE / i <= fact) \{\\r\\n"\par
+        + "        return Double.NaN;\\r\\n"\par
+        + "      \}\\r\\n"\par
+        + "      fact=fact*i;    \\r\\n"\par
+        + "      \\r\\n"\par
+        + "    \}\\r\\n"\par
+        + "    return fact;    \\r\\n"\par
+        + "  \}\\r\\n"\par
+        + "\}\\r\\n"\par
+        + "";\par
+\par
+    File scr = new File("Snippet.java");\par
+    scr.createNewFile();\par
+    PrintWriter scriptStream = new PrintWriter(scr);\par
+    scriptStream.print(script);\par
+    scriptStream.close();\par
+    Runtime rt = Runtime.getRuntime();\par
+    Process pr = rt.exec("javac Snippet.java");\par
+    BufferedWriter pr_writer = new BufferedWriter(\par
+        new OutputStreamWriter(pr.getOutputStream()));\par
+\par
+    BufferedReader br = new BufferedReader(new InputStreamReader(pr.getErrorStream()));\par
+    while(br.readLine() != null);\par
+    br.close();\par
+    pr_writer.close();\par
+    return run(min , max , inc);\par
+  \}\par
+  public static double lerp(double a, double b, double f) \{\par
+\par
+    return a + f * (b - a);\par
+\}\par
+  public class Equation\{\par
+    public double value;\par
+    String a = "";\par
+\par
+    public Equation(String string,double xVal, boolean init) \{\par
+      a = string;\par
+      a= string.replaceAll(" ", "");\par
+      for(int i = 0 ; i < a.length(); i++ ) \{\par
+        if( a.charAt(i)=='(' || a.charAt(i)=='x') \{\par
+          if(i !=0) \{\par
+            if(isNum(a.charAt(i-1)) || a.charAt(i-1) == ')')\{\par
+              a =a.substring(0, i) + "*" +a.substring( i) ;\par
+            \}\par
+\par
+\par
+          \}\par
+        \}\par
+        if( a.charAt(i)==')'||a.charAt(i)=='x') \{\par
+          if(i !=a.length()-1) \{\par
+            if(isNum(a.charAt(i+1)) || a.charAt(i+1) == '(' )\{\par
+              a =a.substring(0, i+1) + "*" +a.substring( i+1) ;\par
+            \}\par
+\par
+\par
+          \}\par
+        \}\par
+      \}\par
+\par
+\par
+      a= a.replaceAll("x", "("+xVal+ ")");\par
+\par
+      try \{\par
+        sove(xVal);\par
+      \} catch (Exception e) \{\par
+        // TODO Auto-generated catch block\par
+        value = Double.NaN;\par
+      \}\par
+    \}\par
+    public void sove(double xVal) throws Exception\{\par
+\par
+      while(a.contains("(") &&a.contains(")")) \{\par
+          int num =0;\par
+          int start=0;\par
+          \par
+          for(int i = a.indexOf("(") ; i < a.length() ; i++ ) \{\par
+            if( a.charAt(i) == '(') \{\par
+              if(num == 0)\par
+              \{\par
+                start = i;\par
+              \}\par
+              num ++;\par
+\par
+            \}else if( a.charAt(i) == ')') \{\par
+              if(num == 1)\par
+              \{\par
+\par
+                Equation b = new Equation(a.substring(start+1,i ) ,xVal, false);\par
+                if(i+2 < a.length()) \{\par
+                  if(a.charAt(i+1) == '^' ) \{\par
+                    if(a.charAt(i+2)!='(') \{\par
+\par
+                      int s ;\par
+\par
+                      for(s =i +2 ; s < a.length() ; s++) \{\par
+                        if(a.charAt(s-1) == 'E') \par
+                          continue;\par
+                        if(a.charAt(s) == '-'&& s==i+2 )continue;\par
+                        if(isBasicOperator(a.charAt(s)))break;\par
+                      \}\par
+                      \par
+                      a = a.substring(0, start )  \par
+                          +df.format( Math.pow(b.value,  Double.parseDouble(a.substring(i+2, s)) ) )\par
+                          +a.substring(s);\par
+                      break;\par
+                    \}else \{\par
+\par
+                    \}\par
+                  \}\par
+                \}\par
+                a = a.substring(0, start )  \par
+                    +df.format(b.value )\par
+                    +a.substring(i+1);\par
+                break;\par
+              \}\par
+              num --;\par
+\par
+            \}\par
+          \}\par
+          \par
+      \}\par
+      while(a.contains("^")) \{\par
+        int inde = a.indexOf("^");\par
+\par
+        int e ;\par
+        for(e=inde-1 ; e >=0 ; e --) \{\par
+          \par
+          if(isBasicOperator(a.charAt(e)))break;\par
+\par
+        \}\par
+        int s ;\par
+\par
+        for(s =inde +1 ; s < a.length() ; s++) \{\par
+          if(a.charAt(s-1) == 'E') \par
+            continue;\par
+          if(a.charAt(s) == '-'&& s==inde+1 )continue;\par
+          if(isBasicOperator(a.charAt(s)))break;\par
+        \}\par
+\par
+        a = a.substring(0, e+1 )  \par
+            +df.format(Math.pow(Double.parseDouble(a.substring(e+1, inde))\par
+                , Double.parseDouble(a.substring(inde+1, s)))) \par
+            +a.substring(s);\par
+\par
+      \}\par
+\par
+      while(a.contains("*")) \{\par
+        int inde = a.indexOf("*");\par
+\par
+        int e ;\par
+        for(e=inde-1 ; e >=0 ; e --) \{\par
+          \par
+\par
+          if(a.charAt(e) == '-') \{\par
+\par
+            if(e!=0 &&a.charAt(e-1) == 'E') \par
+              continue;\par
+            if(e-1 <0) \{\par
+              continue;\par
+            \}\par
+            if( !isNum(a.charAt(e-1)) )\par
+              continue;\par
+          \}\par
+          if(isBasicOperator(a.charAt(e)))break;\par
+\par
+        \}\par
+        int s ;\par
+\par
+        for(s =inde +1 ; s < a.length() ; s++) \{\par
+          if(a.charAt(s-1) == 'E') \par
+            continue;\par
+          if(a.charAt(s) == '-'&& s==inde+1 )continue;\par
+          if(isBasicOperator(a.charAt(s)))break;\par
+        \}\par
+\par
+        a = a.substring(0, e+1 )  \par
+            +df.format(Double.parseDouble(a.substring(e+1, inde))\par
+                * Double.parseDouble(a.substring(inde+1, s))) \par
+            +a.substring(s);\par
+\par
+      \}\par
+\par
+      while(a.contains("/")) \{\par
+        int inde = a.indexOf("/");\par
+\par
+        int e ;\par
+        for(e=inde-1 ; e >=0 ; e --) \{\par
+          \par
+          if(a.charAt(e) == '-') \{\par
+            \par
+\par
+            if(e!=0 &&a.charAt(e-1) == 'E') \par
+              continue;\par
+            if(e-1 <0) \{\par
+              continue;\par
+            \}\par
+            if( !isNum(a.charAt(e-1)) )\par
+              continue;\par
+          \}\par
+          if(isBasicOperator(a.charAt(e)))break;\par
+\par
+        \}\par
+        int s ;\par
+\par
+        for(s =inde +1 ; s < a.length() ; s++) \{\par
+          if(a.charAt(s-1) == 'E') \par
+            continue;\par
+          if(a.charAt(s) == '-'&& s==inde+1 )continue;\par
+          if(isBasicOperator(a.charAt(s)))break;\par
+        \}\par
+\par
+        a = a.substring(0, e+1 )  \par
+            +df.format(Double.parseDouble(a.substring(e+1, inde))\par
+                / Double.parseDouble(a.substring(inde+1, s))) \par
+            +a.substring(s);\par
+\par
+      \}\par
+      while(a.contains("+")) \{\par
+        int inde = a.indexOf("+");\par
+\par
+        int e ;\par
+        for(e=inde-1 ; e >=0 ; e --) \{\par
+\par
+          if(a.charAt(e) == '-') \{\par
+\par
+            if(e!=0 &&a.charAt(e-1) == 'E') \par
+              continue;\par
+            if(e-1 <0) \{\par
+              continue;\par
+            \}\par
+            if( !isNum(a.charAt(e-1)) )\par
+              continue;\par
+          \}\par
+          if(isBasicOperator(a.charAt(e)))break;\par
+\par
+        \}\par
+        int s ;\par
+\par
+        for(s =inde +1 ; s < a.length() ; s++) \{\par
+          if(a.charAt(s-1) == 'E') \par
+            continue;\par
+          if(a.charAt(s) == '-'&& s==inde+1 )continue;\par
+          if(isBasicOperator(a.charAt(s)))break;\par
+        \}\par
+        \par
+        a = a.substring(0, e+1 )  \par
+            +df.format(Double.parseDouble(a.substring(e+1, inde))\par
+                + Double.parseDouble(a.substring(inde+1, s))) \par
+            +a.substring(s);\par
+        \par
+      \}\par
+      while(a.contains("-")) \{\par
+        int inde = a.indexOf("-");\par
+\par
+        int e ;\par
+        for(e=inde-1 ; e >=0 ; e --) \{\par
+\par
+          if(a.charAt(e) == '-') \{\par
+            if(e-1 <0) \{\par
+              continue;\par
+            \}\par
+            if(e!=0 &&a.charAt(e-1) == 'E') \par
+              continue;\par
+            \par
+            if( !isNum(a.charAt(e-1)) )\par
+              continue;\par
+          \}\par
+          if(isBasicOperator(a.charAt(e)))break;\par
+\par
+        \}\par
+        int s ;\par
+\par
+        for(s =inde +1 ; s < a.length() ; s++) \{\par
+          if(a.charAt(s-1) == 'E') \par
+            continue;\par
+          if(a.charAt(s) == '-'&& s==inde+1 )continue;\par
+          if(isBasicOperator(a.charAt(s)))break;\par
+        \}\par
+        if(inde ==0) \{\par
+          value -= Double.parseDouble(a.substring(1, s)) ;\par
+          a=a.substring(s);\par
+          continue;\par
+        \}\par
+\par
+        a = a.substring(0, e+1 )  \par
+            +df.format(Double.parseDouble(a.substring(e+1, inde))\par
+                - Double.parseDouble(a.substring(inde+1, s))) \par
+            +a.substring(s);\par
+\par
+      \}\par
+      if(a.isEmpty()) \{\par
+        return ;\par
+      \}\par
+      value += Double.parseDouble(a);\par
+      return ;\par
+    \}\par
+\par
+  \}\par
+\par
+  public static double[][] run(double min , double max , double inc) throws IOException \{\par
+    double[][] result = new double[2][ (int) ((max - min)/inc )];\par
+    Runtime rt = Runtime.getRuntime();\par
+    Process pr = rt.exec("java Snippet " +  min + " " + max + " " +inc );\par
+    BufferedWriter pr_writer = new BufferedWriter(\par
+        new OutputStreamWriter(pr.getOutputStream()));\par
+\par
+    BufferedReader br = new BufferedReader(new InputStreamReader(pr.getInputStream()));\par
+    String ch;\par
+    int data =0;\par
+    for(double i = min ; i <=max ; i+= inc) \{\par
+\par
+      if ((ch = br.readLine()) != null)\par
+      \{\par
+        if(data >= result[0].length)break;\par
+        String [] a = ch.trim().split("\\\\s");\par
+        result[0][data] = Double.parseDouble(a[0]);\par
+        result[1][data] = Double.parseDouble(a[1]);\par
+\par
+        data++;\par
+      \}\par
+\par
+    \}\par
+    br.close();\par
+    pr_writer.close();\par
+    return result;\par
+  \}\par
+  public static String formatToScript(String stored) throws Exception \{\par
+    stored = stored.replaceAll(" ", "");\par
+    while(stored.contains("^")) \{\par
+      int index =stored.indexOf("^");\par
+      int replacedBottom = index;\par
+      int replacedTop = index;\par
+      if(stored.charAt(index-1) == ')') \{// If it's (Equation )^123\par
+        int startBracket = index-2;// Index of (\par
+        while(startBracket>0 && stored.charAt(startBracket) != '(') \{\par
+          startBracket--;\par
+        \}\par
+        replacedBottom=startBracket;\par
+      \}else \{\par
+        int startBracket = index;// index of first number\par
+        while( startBracket>0&&isNum(stored.charAt(startBracket-1))) \{\par
+          startBracket--;\par
+        \}\par
+        replacedBottom=startBracket;\par
+\par
+      \}\par
+      if(stored.charAt(index+1) == '(') \{// If it's Equation^(123\par
+        int startBracket = index+2;// Index of (\par
+        while(startBracket<stored.length() && stored.charAt(startBracket) != ')') \{\par
+          startBracket++;\par
+        \}\par
+        replacedTop=startBracket;\par
+      \}else \{\par
+        int startBracket = index;// index of first number\par
+        while( startBracket+1<stored.length()&&isNum(stored.charAt(startBracket+1))) \{\par
+          startBracket++;\par
+        \}\par
+        replacedTop=startBracket;\par
+\par
+      \}\par
+\par
+\par
+      String temp ="(double)Math.pow(" + stored.substring(replacedBottom, index) +", "+ stored.substring(index+1, replacedTop+1)  + ")";\par
+      stored =stored.substring(0, replacedBottom) +temp +stored.substring( replacedTop+1) ;\par
+    \}while(stored.contains("!")) \{// Factorial\par
+      int index =stored.indexOf("!");\par
+\par
+      int replacedBottom = index;\par
+      if(stored.charAt(index-1) == ')') \{// If it's (Equation )^123\par
+        int startBracket = index-2;// Index of (\par
+        while(startBracket>0 && stored.charAt(startBracket) != '(') \{\par
+          startBracket--;\par
+        \}\par
+        replacedBottom=startBracket;\par
+      \}else \{\par
+        int startBracket = index;// index of first number\par
+        while( startBracket>0&&isNum(stored.charAt(startBracket-1))) \{\par
+          startBracket--;\par
+        \}\par
+        replacedBottom=startBracket;\par
+\par
+      \}\par
+\par
+\par
+      String temp ="factorial(" + stored.substring(replacedBottom, index) + ")";\par
+      stored =stored.substring(0, replacedBottom) +temp +stored.substring( index+1) ;\par
+    \}while(stored.contains("|")) \{// Factorial\par
+      int index =stored.indexOf("|");\par
+\par
+      int top = index;\par
+\par
+      // If it's (Equation )^123\par
+      int startBracket = index+1;// Index of (\par
+      while(startBracket< stored.length()&& stored.charAt(startBracket) != '|') \{\par
+        startBracket++;\par
+      \}\par
+      top=startBracket;\par
+\par
+\par
+\par
+\par
+      String temp ="abs(" + stored.substring(index+1, top) + ")";\par
+      stored =stored.substring(0, index) +temp +stored.substring( top+1) ;\par
+\par
+    \}\par
+\par
+\par
+\par
+\par
+\par
+    stored =stored.replaceAll("sqrt", "(double)Math.sqrt");\par
+    stored =stored.replaceAll("floor", "(double)Math.floor");\par
+    stored =stored.replaceAll("abs", "(double)Math.abs");\par
+\par
+    for(int i = 0 ; i < stored.length(); i++ ) \{\par
+      if( stored.charAt(i)=='(' || stored.charAt(i)=='x') \{\par
+        if(i !=0) \{\par
+          if(isNum(stored.charAt(i-1)) || stored.charAt(i-1) == ')')\{\par
+            stored =stored.substring(0, i) + "*" +stored.substring( i) ;\par
+          \}\par
+\par
+\par
+        \}\par
+      \}\par
+      if( stored.charAt(i)==')'||stored.charAt(i)=='x') \{\par
+        if(i !=stored.length()-1) \{\par
+          if(isNum(stored.charAt(i+1)) || stored.charAt(i+1) == '(' )\{\par
+            stored =stored.substring(0, i+1) + "*" +stored.substring( i+1) ;\par
+          \}\par
+\par
+\par
+        \}\par
+      \}\par
+    \}\par
+\par
+\par
+    return stored ;\par
+  \}\par
+  public static boolean isBasicOperator(char a) \{\par
+    return (a == '^'||a == '+' || a== '-' || a =='%' || a == '*' || a=='/');\par
+  \}\par
+  public static boolean isNum(char a) \{ // including Periods\par
+    return(((int) a >=46 && (int)a<=57 && (int) a != 57 ) || a=='x' || a=='E') ;\par
+  \}\par
+\par
+  @Override\par
+  public void mouseClicked(MouseEvent e) \{\par
+    // TODO Auto-generated method stub\par
+\par
+    isMouseDown = true;\par
+  \}\par
+\par
+  @Override\par
+  public void mouseEntered(MouseEvent e) \{\par
+    // TODO Auto-generated method stub\par
+\par
+  \}\par
+\par
+  @Override\par
+  public void mouseExited(MouseEvent e) \{\par
+    // TODO Auto-generated method stub\par
+\par
+  \}\par
+  @Override\par
+  public void mouseDragged(MouseEvent e) \{\par
+    // TODO Auto-generated method stub\par
+\par
+    if(p1 == null) \{\par
+      p1 = e.getPoint();\par
+\par
+    \}\par
+    else \{\par
+      xOffset -= (e.getPoint().getX() - p1.getX() )/ zoomFactor;\par
+      yOffset -= (e.getPoint().getY() - p1.getY() )/ zoomFactor;\par
+\par
+      p1 = e.getPoint();\par
+    \}\par
+\par
+  \}\par
+\}\par
+}
+ 
